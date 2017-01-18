@@ -7,16 +7,20 @@ import CallKit
 
 protocol CallUIAdaptee {
     var notificationsAdapter: CallNotificationsAdapter { get }
+    var callService: CallService { get }
     var hasManualRinger: Bool { get }
 
-    func startOutgoingCall(_ call: SignalCall)
+    func startOutgoingCall(handle: String) -> SignalCall
     func reportIncomingCall(_ call: SignalCall, callerName: String)
     func reportMissedCall(_ call: SignalCall, callerName: String)
+    func answerCall(localId: UUID)
     func answerCall(_ call: SignalCall)
+    func declineCall(localId: UUID)
     func declineCall(_ call: SignalCall)
     func recipientAcceptedCall(_ call: SignalCall)
     func endCall(_ call: SignalCall)
     func toggleMute(call: SignalCall, isMuted: Bool)
+    func callBack(recipientId: String)
 }
 
 // Shared default implementations
@@ -29,13 +33,25 @@ extension CallUIAdaptee {
     internal func reportMissedCall(_ call: SignalCall, callerName: String) {
         notificationsAdapter.presentMissedCall(call, callerName: callerName)
     }
+
+    internal func callBack(recipientId: String) {
+        CallService.signalingQueue.async {
+            guard self.callService.call == nil else {
+                assertionFailure("unexpectedly found an existing call when trying to call back: \(recipientId)")
+                return
+            }
+
+            let call = self.startOutgoingCall(handle: recipientId)
+            self.showCall(call)
+        }
+    }
 }
 
 /**
  * Notify the user of call related activities.
  * Driven by either a CallKit or System notifications adaptee
  */
-class CallUIAdapter {
+@objc class CallUIAdapter: NSObject {
 
     let TAG = "[CallUIAdapter]"
     private let adaptee: CallUIAdaptee
@@ -69,17 +85,27 @@ class CallUIAdapter {
     }
 
     internal func startOutgoingCall(handle: String) -> SignalCall {
-        let call = SignalCall.outgoingCall(localId: UUID(), remotePhoneNumber: handle)
-        adaptee.startOutgoingCall(call)
-        return call
+        return adaptee.startOutgoingCall(handle: handle)
+    }
+
+    func answerCall(localId: UUID) {
+        adaptee.answerCall(localId: localId)
     }
 
     internal func answerCall(_ call: SignalCall) {
         adaptee.answerCall(call)
     }
 
+    internal func declineCall(localId: UUID) {
+        adaptee.declineCall(localId: localId)
+    }
+
     internal func declineCall(_ call: SignalCall) {
         adaptee.declineCall(call)
+    }
+
+    internal func callBack(recipientId: String) {
+        adaptee.callBack(recipientId: recipientId)
     }
 
     internal func recipientAcceptedCall(_ call: SignalCall) {
