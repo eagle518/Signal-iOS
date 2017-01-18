@@ -296,14 +296,22 @@ class CallViewController: UIViewController, CallDelegate {
 
         textMessageButton = createButton(imageName:"message-active-wide",
                                                 action:#selector(didPressTextMessage))
-        muteButton = createButton(imageName:"mute-active-wide",
+        muteButton = createButton(imageName:"mute-unselected-wide",
                                   action:#selector(didPressMute))
         speakerPhoneButton = createButton(imageName:"speaker-active-wide",
                                           action:#selector(didPressSpeakerphone))
-        videoButton = createButton(imageName:"video-active-wide",
+        videoButton = createButton(imageName:"video-inactive-wide",
                                    action:#selector(didPressVideo))
         hangUpButton = createButton(imageName:"hangup-active-wide",
                                     action:#selector(didPressHangup))
+
+        let muteSelectedImage = UIImage(named:"mute-selected-wide")
+        assert(muteSelectedImage != nil)
+        muteButton.setImage(muteSelectedImage, for:.selected)
+
+        let videoSelectedImage = UIImage(named:"video-active-wide")
+        assert(videoSelectedImage != nil)
+        videoButton.setImage(videoSelectedImage, for:.selected)
 
         ongoingCallView = createContainerForCallControls(controlGroups : [
             [textMessageButton, videoButton],
@@ -350,6 +358,7 @@ class CallViewController: UIViewController, CallDelegate {
 
     func createButton(imageName: String, action: Selector) -> UIButton {
         let image = UIImage(named:imageName)
+        assert(image != nil)
         let button = UIButton()
         button.setImage(image, for:.normal)
         button.imageEdgeInsets = UIEdgeInsets(top: buttonInset(),
@@ -519,9 +528,13 @@ class CallViewController: UIViewController, CallDelegate {
 
     func updateCallUI(callState: CallState) {
         let textForState = localizedTextForCallState(callState)
-        Logger.info("\(TAG) new call status: \(callState) aka \"\(textForState)\"")
+//        Logger.info("\(TAG) new call status: \(callState) aka \"\(textForState)\"")
 
-        self.callStatusLabel.text = textForState
+        callStatusLabel.text = textForState
+
+        Logger.info("call.hasVideo: \"\(call.hasVideo)\"")
+        videoButton.isSelected = call.hasVideo
+        muteButton.isSelected = call.isMuted
 
         // Show Incoming vs. Ongoing call controls
         let isRinging = callState == .localRinging
@@ -583,7 +596,7 @@ class CallViewController: UIViewController, CallDelegate {
         Logger.info("\(TAG) called \(#function)")
         muteButton.isSelected = !muteButton.isSelected
         if let call = self.call {
-            callUIAdapter.toggleMute(call: call, isMuted: muteButton.isSelected)
+            callUIAdapter.setIsMuted(call: call, isMuted: muteButton.isSelected)
         } else {
             Logger.warn("\(TAG) pressed mute, but call was unexpectedly nil")
         }
@@ -618,8 +631,12 @@ class CallViewController: UIViewController, CallDelegate {
 
     func didPressVideo(sender: UIButton) {
         Logger.info("\(TAG) called \(#function)")
-
-        // TODO:
+        videoButton.isSelected = !videoButton.isSelected
+        if let call = self.call {
+            callUIAdapter.setHasVideo(call: call, hasVideo: videoButton.isSelected)
+        } else {
+            Logger.warn("\(TAG) pressed video, but call was unexpectedly nil")
+        }
     }
 
     /**
@@ -637,18 +654,25 @@ class CallViewController: UIViewController, CallDelegate {
         self.dismiss(animated: true)
     }
 
-    // MARK: - Call Delegate
+    // MARK: - CallDelegate
 
     internal func stateDidChange(call: SignalCall, state: CallState) {
         DispatchQueue.main.async {
             self.updateCallUI(callState: state)
+            Logger.info("\(self.TAG) new call status: \(call.state)")
         }
         self.audioService.handleState(state)
     }
 
+    internal func hasVideoDidChange(call: SignalCall, hasVideo: Bool) {
+        DispatchQueue.main.async {
+            self.updateCallUI(callState: call.state)
+        }
+    }
+
     internal func muteDidChange(call: SignalCall, isMuted: Bool) {
         DispatchQueue.main.async {
-            self.muteButton.isSelected = call.isMuted
+            self.updateCallUI(callState: call.state)
         }
     }
 }
