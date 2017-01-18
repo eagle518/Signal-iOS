@@ -13,6 +13,9 @@ class NonCallKitCallUIAdaptee: CallUIAdaptee {
     let notificationsAdapter: CallNotificationsAdapter
     let callService: CallService
 
+    // Starting/Stopping incoming call ringing is our apps responsibility for the non CallKit interface.
+    let hasManualRinger = true
+
     required init(callService: CallService, notificationsAdapter: CallNotificationsAdapter) {
         self.callService = callService
         self.notificationsAdapter = notificationsAdapter
