@@ -519,7 +519,6 @@ class CallViewController: UIViewController, CallDelegate {
 
     func updateCallUI(callState: CallState) {
         let textForState = localizedTextForCallState(callState)
-        Logger.info("\(TAG) new call status: \(callState) aka \"\(textForState)\"")
 
         self.callStatusLabel.text = textForState
 
@@ -641,6 +640,7 @@ class CallViewController: UIViewController, CallDelegate {
 
     internal func stateDidChange(call: SignalCall, state: CallState) {
         DispatchQueue.main.async {
+            Logger.info("\(self.TAG) new call status: \(state)")
             self.updateCallUI(callState: state)
         }
         self.audioService.handleState(state)
