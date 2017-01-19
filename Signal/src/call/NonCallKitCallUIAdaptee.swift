@@ -78,5 +78,4 @@ class NonCallKitCallUIAdaptee: CallUIAdaptee {
             self.callService.handleToggledMute(isMuted: isMuted)
         }
     }
-
 }
